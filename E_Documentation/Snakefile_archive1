@@ -1,0 +1,156 @@
+from snakemake.io import expand, glob_wildcards
+
+SAMPLE = glob_wildcards('data/BAM/{sample}.IND229.fastq.trimmomatic_pe.uniquely_mapped.samToBam.addReadGroup.reorder.sort.clean.fixMate.markDuplicatesRemove.bam').sample
+TIMEPOINT = ['Xvivo_00h','MP_05h','DON_05h','DON_24h', 'DDG_05h', 'DDG_24h']
+# inventer une fonction pour qu'il créé tout seul les combinaisons à partir de TIMEPOINT ???
+DIFFERENTIAL = ['DDG_05h_vs_MP_05h', 'DON_05h_vs_MP_05h', 'MP_05h_vs_Xvivo_00h', 'DON_05h_vs_Xvivo_00h', 'DDG_05h_vs_Xvivo_00h','DON_24h_vs_DON_05h', 'DDG_24h_vs_DDG_05h']
+REGION = ['GATA2','RUNX1','SMAD6','ERG','SPI1','CBFA2T3','FLI1','ZFPM1','HHEX','TAL1','GATA1']
+
+MODULATION = ['dec', 'inc']
+ELEMENT = ["UTR3P", "UTR5P", "CpG","CTCF","Exons","H3K27me3","H3K36me3", "H3K4me1","H3K4me3","H3K9me3","Introns","TSS_mp1kb","Intergenic","CpG_Intergenic","CTCF_Intergenic","CTCF_in_intron","CTCF_in_exon","Histone_Intergenic"]
+ANALYSIS = ['static', 'differential']
+CONDITION = ['MP', 'DON', 'DDG']
+
+rule all :
+	input : # expand("results/downsampled_BAM/{sample}_downsampled.bam.bai", sample = SAMPLE),                                                                      # rule bam_indexing
+	#         expand("results/readCount_output/readCount_{timepoint}.rda", timepoint = TIMEPOINT),                                                                  # rule ReadCount_Static_Peaks_Intersection
+	#         expand("results/genomic_ranges/static_peaks/peaks_intersection_{timepoint}_gr.rda", timepoint = TIMEPOINT),                                           # rule ReadCount_Static_Peaks_Intersection
+	#         expand("results/readCount_output/featuresCount_{timepoint}.txt", timepoint = TIMEPOINT),                                                              # rule ReadCount_Static_Peaks_Intersection
+	#         expand("results/readCount_output/df_nb_peaks_all_{timepoint}.csv", timepoint = TIMEPOINT),                                                            # rule ReadCount_Static_Peaks_Intersection
+	#         expand("results/readCount_output/readCount_{differential}.rda", differential = DIFFERENTIAL),                                                         # rule DEseq_Differential_Peaks_Union
+	#         expand("results/DEseq_output/DEseq2_results_{differential}.txt", differential = DIFFERENTIAL),                                                        # rule DEseq_Differential_Peaks_Union
+	#         expand("results/readCount_output/featuresCount_{differential}.txt", differential = DIFFERENTIAL),                                                     # rule DEseq_Differential_Peaks_Union
+	#         expand("results/genomic_ranges/differential_peaks/peaks_{modulation}_{differential}_gr.rda", modulation = MODULATION, differential = DIFFERENTIAL),   # rule DEseq_Differential_Peaks_Union
+	#         expand("results/genomic_ranges/annotated_genomic_ranges/peaks_{modulation}_{differential}_ann_gr.rda", modulation = MODULATION, differential = DIFFERENTIAL),  # rule Annotate_grange
+	#         expand("results/genomic_ranges/annotated_genomic_ranges/peaks_intersection_{timepoint}_ann_gr.rda", timepoint = TIMEPOINT),                           # rule Annotate_grange
+	#         expand("results/genomic_ranges/annotated_csv/peaks_intersection_{timepoint}_ann.csv", timepoint = TIMEPOINT),                                         # rule Annotate_grange
+	#         expand("results/genomic_ranges/annotated_csv/peaks_{modulation}_{differential}_ann.csv", modulation = MODULATION, differential = DIFFERENTIAL),       # rule Annotate_grange
+	#         expand("results/genomic_ranges/genomic_ranges_by_annot/peaks_{modulation}_{differential}_{element}.bed", modulation = MODULATION, differential = DIFFERENTIAL, element = ELEMENT),  # rule Annotate_grange
+	#         expand("results/genomic_ranges/genomic_ranges_by_annot/peaks_{modulation}_{differential}_{element}.rda", modulation = MODULATION, differential = DIFFERENTIAL, element = ELEMENT),  # rule Annotate_grange
+	#         expand("results/genomic_ranges/genomic_ranges_by_annot/peaks_intersection_{timepoint}_{element}.rda", timepoint = TIMEPOINT, element = ELEMENT),      # rule Annotate_grange
+	#         expand("results/plot/features_histogram_{analysis}_analysis_{condition}.png", analysis = ANALYSIS, condition = CONDITION),                            # rule Plot_features_histogram
+	#         expand("results/plot/total_peak_nb_histogram_{condition}.png", condition = CONDITION),                                                                # rule Plot_features_histogram
+	#         expand("results/plot/TSS_Exon_Intron_Intergenic_histogram_{condition}.png", condition = CONDITION),                                                   # rule Plot_features_histogram
+	#         expand("results/plot/volcano_{differential}.png", differential = DIFFERENTIAL),                                                                       # rule Plot_volcano
+	#         expand("results/plot/volcano_TSS_Intergenic_{differential}.png", differential = DIFFERENTIAL),                                                        # rule Plot_volcano
+	#         expand("results/Gene_coverage/{condition}_{region}_Coverage_plot.txt", condition = CONDITION, region = REGION),                                       # rule Gene_Coverage
+	        expand("results/genomic_ranges/annotated_bed/peaks_intersection_{timepoint}_ann.bed", timepoint = TIMEPOINT),                                         # rule Convert_to_bed
+	        expand("results/homer_output/{timepoint}/known_Results.html", timepoint = TIMEPOINT)                                                                  # rule Homer_motif
+
+
+# rule bam_downsampling :
+# 	input : "data/BAM/{sample}.IND229.fastq.trimmomatic_pe.uniquely_mapped.samToBam.addReadGroup.reorder.sort.clean.fixMate.markDuplicatesRemove.bam"
+# 	output : "results/downsampled_BAM/{sample}_downsampled.bam"
+# 	conda : "environment/ATACseq_2020.yaml"
+# 	shell : """
+#         nb_reads=$(samtools view -c {input})
+#         echo $nb_reads
+#         downsampling_ratio=$(echo "16000000/$nb_reads"|bc -l)
+#         samtools view -s 1$downsampling_ratio -b {input} > {output}
+#         """
+#
+# rule bam_indexing :
+# 	input : rules.bam_downsampling.output
+# 	output : "results/downsampled_BAM/{sample}_downsampled.bam.bai"
+# 	conda : "environment/ATACseq_2020.yaml"
+# 	shell : """ samtools index {input} > {output} """
+#
+# rule peak_calling :
+# 	input : rules.bam_downsampling.output
+# 	output : "results/macs2_output/{sample}_peaks.broadPeak"
+# 	conda : "environment/ATACseq_2020.yaml"
+# 	params : prefix = "{sample}"
+# 	shell : """ macs2 callpeak -t {input} -n {params.prefix} --outdir results/macs2_output -f BAMPE -g hs -B --broad --broad-cutoff 0.1  > {output} """
+#
+# rule ReadCount_Static_Peaks_Intersection :
+# 	input : expand("results/macs2_output/{sample}_peaks.broadPeak", sample = SAMPLE)
+# 	output : expand("results/readCount_output/readCount_{timepoint}.rda", timepoint = TIMEPOINT),
+# 	         expand("results/genomic_ranges/static_peaks/peaks_intersection_{timepoint}_gr.rda", timepoint = TIMEPOINT),
+# 	         expand("results/readCount_output/featuresCount_{timepoint}.txt", timepoint = TIMEPOINT),
+# 	         expand("results/readCount_output/df_nb_peaks_all_{timepoint}.csv", timepoint = TIMEPOINT)
+# 	conda : "environment/ATACseq_2020.yaml"
+# 	shell : """ Rscript scripts/01_ReadCount_Static_Peaks_Intersection.R """
+#
+# rule DEseq_Differential_Peaks_Union :
+# 	input : rules.ReadCount_Static_Peaks_Intersection.output
+# 	output : expand("results/readCount_output/readCount_{differential}.rda", differential = DIFFERENTIAL),
+# 	         expand("results/DEseq_output/DEseq2_results_{differential}.txt", differential = DIFFERENTIAL),
+# 	         expand("results/genomic_ranges/differential_peaks/peaks_{modulation}_{differential}_gr.rda", modulation = MODULATION, differential = DIFFERENTIAL),
+# 	         expand("results/readCount_output/featuresCount_{differential}.txt", differential = DIFFERENTIAL)
+# 	conda : "environment/DEseq2_env.yaml"
+# 	shell : """ Rscript scripts/02_DEseq_Differential_Peaks_Union.R """
+
+# rule Annotate_grange :
+# 	input : rules.DEseq_Differential_Peaks_Union.output
+# 	output : expand("results/genomic_ranges/annotated_genomic_ranges/peaks_{modulation}_{differential}_ann_gr.rda", modulation = MODULATION, differential = DIFFERENTIAL),
+# 	           expand("results/genomic_ranges/annotated_genomic_ranges/peaks_intersection_{timepoint}_ann_gr.rda", timepoint = TIMEPOINT),
+# 	           expand("results/genomic_ranges/annotated_csv/peaks_intersection_{timepoint}_ann.csv", timepoint 	= TIMEPOINT),
+# 	           expand("results/genomic_ranges/annotated_csv/peaks_{modulation}_{differential}_ann.csv", modulation = MODULATION, differential = DIFFERENTIAL),
+# 	           expand("results/genomic_ranges/genomic_ranges_by_annot/peaks_{modulation}_{differential}_{element}.bed", modulation = MODULATION, differential = DIFFERENTIAL, element = ELEMENT),
+# 	           expand("results/genomic_ranges/genomic_ranges_by_annot/peaks_{modulation}_{differential}_{element}.rda", modulation = MODULATION, differential = DIFFERENTIAL, element = ELEMENT),
+# 	           expand("results/genomic_ranges/genomic_ranges_by_annot/peaks_intersection_{timepoint}_{element}.rda", timepoint = TIMEPOINT, element = ELEMENT)
+# 	conda : "environment/ATACseq_2020.yaml"
+# 	shell : """ Rscript scripts/03_Annotate_grange.R """
+
+# rule Plot_features_histogram :
+# 	input : rules.Annotate_grange.output
+# 	output : expand("results/plot/features_histogram_{analysis}_analysis_{condition}.png", analysis = ANALYSIS, condition = CONDITION),
+# 	           expand("results/plot/total_peak_nb_histogram_{condition}.png", condition = CONDITION),
+# 	           expand("results/plot/TSS_Exon_Intron_Intergenic_histogram_{condition}.png", condition = CONDITION)
+# 	conda : "environment/ATACseq_2020.yaml"
+# 	shell : """ Rscript scripts/04_Plot_features_histogram.R """
+#
+# rule Plot_volcano :
+# 	input : rules.Annotate_grange.output
+# 	output : expand("results/plot/volcano_{differential}.png", differential = DIFFERENTIAL),
+# 	         expand("results/plot/volcano_TSS_Intergenic_{differential}.png", differential = DIFFERENTIAL)
+# 	conda : "environment/volcano_env.yaml"
+# 	shell : """ Rscript scripts/05_Plot_volcano.R """
+
+rule Convert_to_bed :   # séparation de la conversion en bed et de la rule homer
+	input : # input1 = rules.Annotate_grange.output,
+	        input2 = "results/genomic_ranges/annotated_csv/peaks_intersection_{variable_part}_ann.csv"
+	output : "results/genomic_ranges/annotated_bed/peaks_intersection_{variable_part}_ann.bed"
+	conda : "environment/ATACseq_2020.yaml"
+	shell : """ sed 's/\"//g' {input.input2} | sed 1d | cut -f 2-4 -d ';' --output-delimiter=$'\t' > {output} """
+
+
+rule Homer_motif :
+	input : input1 = rules.Convert_to_bed.output,
+	        input2 = "results/genomic_ranges/annotated_bed/peaks_intersection_{variable_part}_ann.bed"
+	output : "results/homer_output/{variable_part}/known_Results.html"
+	conda : "environment/homer_test.yaml" # préciser qu'il faut installer homer et hg19 sur l'ordi
+	params : prefix = "{variable_part}"
+	shell : """ findMotifsGenome.pl {input.input2} hg19 results/homer_output/{params.prefix}/ -size given -S 100 """
+# problème avec le hg19 ? l'environnement créé via le yaml pose problème il ne contient pas les fichiers chrosomes
+
+#rule Gene_coverage :
+#	  input : rules.DEseq_Differential_Peaks_Union.output
+#	  output : expand("results/Gene_coverage/{condition}_{region}_Coverage_plot.txt", condition = CONDITION, region = REGION)
+#	  conda : "environment/gviz_env.yaml"
+#	  shell : """ Rscript scripts/06_Gene_coverage.R """
+
+
+
+
+
+
+# la ligne de code seule dans la commande fonctionne bien
+# la rule fonctionne seulement quand on met 1 input et 1 ouput mais pas avec des wildcards {test} ou {timepoint}
+# la rule fonctionne lorsque j'enlève les expand avec seulement une ligne (avec le timepoint)
+# lorsque j'ajoute le deuxième input et output, problème au niveau des wildcards, pas possible d'en utiliser deux différents => Not all output files of rule Convert_to_bed contain the same wildcards.
+# je ne distingue pas précisément les deux patterns pour pouvoir tout englober : à voir si ça ne pose pas de problème
+
+
+# version de rule Convert-to-bed avec les distinctions de fichier (ne fonctionne pas)
+#rule Convert_to_bed :   # séparation de la conversion en bed et de la rule homer
+#	input : input1 = rules.Annotate_grange.output,
+#         input2 = "results/genomic_ranges/annotated_csv/peaks_{variable_part}_ann.csv",
+#         input3 = "results/genomic_ranges/annotated_csv/peaks_{modulation}_{differential}_ann.csv"
+#	output : output1 = "results/genomic_ranges/annotated_bed/peaks_{variable_part}_ann.bed",
+#          output2 = "results/genomic_ranges/annotated_bed/peaks_{modulation}_{differential}_ann.bed"
+# conda : "environment/ATACseq_2020.yaml"
+# shell : """
+# sed 's/\"//g' {input.input2} | sed 1d | cut -f 2-4 -d ';' --output-delimiter=$'\t' > {output.output1}
+# sed 's/\"//g' {input.input3} | sed 1d | cut -f 2-4 -d ';' --output-delimiter=$'\t' > {output.output2}
+# """
