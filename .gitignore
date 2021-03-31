@@ -1,0 +1,9 @@
+.Rhistory
+/.snakemake/
+
+/A_Initial_data
+/C_Scripts/tests.R
+/D_Analysis/
+/analysis_choice.csv
+
+/Rplots.pdf
