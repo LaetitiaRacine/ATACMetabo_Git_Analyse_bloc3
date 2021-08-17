@@ -36,6 +36,12 @@ print(list_comp_cond())
 
 rule all :
 	input :
+		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_pertime.png",
+		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_percond.png",
+		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_pertime.png",
+		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_percond.png",
+		"D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv",
+		"D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_long_report.csv",
 		expand("D_Analysis/ATAC_differential_accessibility/{comparison}_threshold_10_ann.gr.rds", comparison = list_comp_time()),
 		expand("D_Analysis/ATAC_differential_accessibility/{comparison}_threshold_10_ann.gr.rds", comparison = list_comp_cond()),
 		expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.rds", comparison = list_comp_time()),
@@ -43,6 +49,23 @@ rule all :
 		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_time()),
 		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_cond())
 
+
+#################################################
+### Experiment : ATAC_peaks_annotation
+#################################################
+
+rule plot_nbpeaks_annotation :
+	output :
+			plot1 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_pertime.png",
+			plot2 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_percond.png",
+			plot3 = "D_Analysis/ATAC_differential_accessibilitypeak_annotation/plot_nbpeaks_annotation_pertime.png",
+			plot4 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_percond.png",
+			tab_annot = "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv",
+			tab_annot_long = "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_long_report.csv"
+	params :
+			gr_directory = "A_Initial_data/merged_analysis/genomic_ranges/"
+	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
+	shell : """ Rscript C_Scripts/ATAC_plot_peaks_annotation.R {params.gr_directory} {output.plot1} {output.plot2} {output.plot3} {output.plot4} {output.tab_annot} {output.tab_annot_long} """
 
 
 ##############################################################################################
@@ -88,23 +111,6 @@ rule differential_peaks_featureCounts :
 #            expand("results/plot/volcano_TSS_Intergenic_{differential}.png", differential = DIFFERENTIAL)
 #   conda : "B_Environments/volcano_env.yaml"
 #   shell : """ Rscript C_Scripts/05_Plot_volcano.R """
-
-
-
-#################################################
-### Experiment : ATAC_peaks_annotation
-#################################################
-
-# rule plot_annotation :
-# input :
-# 	output : expand("results/plot/features_histogram_{analysis}_analysis_{condition}.png", analysis = ANALYSIS, condition = CONDITION),
-# 	           expand("results/plot/total_peak_nb_histogram_{condition}.png", condition = CONDITION),
-# 	           expand("results/plot/TSS_Exon_Intron_Intergenic_histogram_{condition}.png", condition = CONDITION)
-# 	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-# 	shell : """ Rscript C_Scripts/04_Plot_features_histogram.R {param.directory}"""
-#
-
-
 
 
 
