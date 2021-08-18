@@ -47,8 +47,9 @@ rule all :
 		expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.rds", comparison = list_comp_time()),
 		expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.rds", comparison = list_comp_cond()),
 		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_time()),
-		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_cond())
-
+		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_cond()),
+        expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.csv", comparison = list_comp_time()),
+		expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.csv", comparison = list_comp_cond())
 
 #################################################
 ### Experiment : ATAC_peaks_annotation
@@ -58,7 +59,7 @@ rule plot_nbpeaks_annotation :
 	output :
 			plot1 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_pertime.png",
 			plot2 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_percond.png",
-			plot3 = "D_Analysis/ATAC_differential_accessibilitypeak_annotation/plot_nbpeaks_annotation_pertime.png",
+			plot3 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_pertime.png",
 			plot4 = "D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_percond.png",
 			tab_annot = "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv",
 			tab_annot_long = "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_long_report.csv"
@@ -87,9 +88,14 @@ rule differential_peaks_featureCounts :
 		union = "D_Analysis/ATAC_differential_accessibility/{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}_threshold_10_ann.gr.rds"
 	output :
 		readcount = "D_Analysis/ATAC_differential_accessibility/readcount_{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}.rds",
-		featurecounts = "D_Analysis/ATAC_differential_accessibility/featurecounts_{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}.txt"
+		featurecounts = "D_Analysis/ATAC_differential_accessibility/featurecounts_{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}.txt",
+		csv = "D_Analysis/ATAC_differential_accessibility/readcount_{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}.csv"
 	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-	shell : """ Rscript C_Scripts/peaks_union_featureCounts.R --output_rds {output.readcount} --output_txt {output.featurecounts} {input.union} {input.bam1} {input.bam2} """
+	shell : """ Rscript C_Scripts/peaks_union_featureCounts.R \\
+					--output_rds {output.readcount} \\
+					--output_txt {output.featurecounts} \\
+					--output_csv {output.csv} \\
+					{input.union} {input.bam1} {input.bam2} """
 
 # rule differential_peaks_DEseq :
 
