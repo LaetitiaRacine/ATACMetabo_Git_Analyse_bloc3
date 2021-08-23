@@ -57,8 +57,11 @@ for (i in 1:length(peaks)) {
 
 df_peaks_annotation_l = pivot_longer(data = df_peaks_annotation, cols = 3:ncol(df_peaks_annotation), names_to = "annotation", values_to = "count")
 
+write.table(df_peaks_annotation, file = arguments$output.df_annot_wide, sep = ";", row.names = FALSE) 
+write.table(df_peaks_annotation_l, file = arguments$output.df_annot_long, sep = ";", row.names = FALSE) 
+
 #####################
-### Plots creation 
+### Plot : Nb peaks per time or condition
 #####################
 
 nbpeaks_pertime = ggplot(df_peaks_recap,aes(x = time,  y = nbpeaks, label = nbpeaks, fill = condition)) +
@@ -94,6 +97,18 @@ nbpeaks_percond = ggplot(df_peaks_recap,aes(x = condition,  y = nbpeaks, label =
   scale_fill_viridis_d()
 nbpeaks_percond
 
+ggsave(plot = nbpeaks_pertime,
+       filename = arguments$name_plot1,
+       width = 16*0.75, height = 9*0.75)
+
+ggsave(plot = nbpeaks_percond, 
+       filename = arguments$name_plot2,
+       width = 16*0.75, height = 9*0.75)
+
+#####################
+### Plot : Nb peaks per time or condition - facet by annotations
+#####################
+
 annot_percond = ggplot(df_peaks_annotation_l,aes(x = condition,  y = count, fill = time)) +
   geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
   theme(legend.position = "right", 
@@ -123,18 +138,6 @@ annot_pertime = ggplot(df_peaks_annotation_l,aes(x = time,  y = count, fill = co
   facet_wrap(annotation~., scale = "free_x")
 annot_pertime
 
-#####################
-### Outputs' saving 
-#####################
-
-ggsave(plot = nbpeaks_pertime,
-       filename = arguments$name_plot1,
-       width = 16*0.75, height = 9*0.75)
-
-ggsave(plot = nbpeaks_percond, 
-       filename = arguments$name_plot2,
-       width = 16*0.75, height = 9*0.75)
-
 ggsave(plot = annot_pertime, 
        filename = arguments$name_plot3,
        width = 16*0.75, height = 9*0.75)
@@ -143,5 +146,5 @@ ggsave(plot = annot_percond,
        filename = arguments$name_plot4,
        width = 16*0.75, height = 9*0.75)
 
-write.table(df_peaks_annotation, file = arguments$output.df_annot_wide, sep = ";", row.names = FALSE) 
-write.table(df_peaks_annotation_l, file = arguments$output.df_annot_long, sep = ";", row.names = FALSE) 
+
+
