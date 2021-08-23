@@ -14,5 +14,8 @@ Pour rappel, le "processing global" des fichiers a été séparé en trois étap
 
 *************************************************************************************************************
 
-L'explication du code est disponible dans : 
-Ce code permet de : 
+
+
+Lien vers les Initial Data = on fait un lien seulement vers les données qui nous intéressent. 
+C'est à dire que si on exclut les points 06h, on ne créé pas de lien. 
+On fait un lien seulement pour les threshold 10. 

@@ -109,8 +109,6 @@ rule differential_peaks_featureCounts :
 # 	conda : "B_Environments/DEseq2_env.yaml"
 # 	shell : """ Rscript C_Scripts/02_DEseq_Differential_Peaks_Union.R """
 #
-#
-#
 # rule Plot_volcano :
 #   input : rules.Annotate_grange.output
 #   output : expand("results/plot/volcano_{differential}.png", differential = DIFFERENTIAL),
