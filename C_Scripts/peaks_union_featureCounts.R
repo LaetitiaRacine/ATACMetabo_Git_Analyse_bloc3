@@ -13,6 +13,7 @@ Usage:
 Options:
   --output_rds <file>  Output rds file
   --output_txt <file>  Output matrix count txt file
+  --output_csv <file> Output csv file
   -h, --help           Show this screen
 " -> doc
 
@@ -64,10 +65,7 @@ if (!is.null(arguments$output_txt)) {
 
 if (!is.null(arguments$output_csv)) {
   print("Save csv...")
-  count_df = tibble::rownames_to_column(data.frame(readCount$counts), "name")
-  count_df = tidyr::separate(count_df, col = name, into = c("condition","time","donor", "peak", "num"), sep="_", remove = TRUE) 
-  count_df = tidyr::unite(count_df, col = peakID, peak, num, sep="_", remove = TRUE)
-  if (!str_detect(arguments$csv_input, pattern = "_ann")) { colnames(count_df) = c("condition","time","donor","peakID","nbreads") }
+  count_df = tibble::rownames_to_column(data.frame(readCount$counts), "peakID")
   write.table(count_df, file = arguments$output_csv, sep = ";", row.names = FALSE) 
 }
 
