@@ -5,59 +5,118 @@ from functools import partial
 SAMPLE = defaultdict(dict)
 
 import csv
-with open('differential_analysis_choice.csv', mode='r') as file:
+with open('comparison_analysis_choice.csv', mode='r') as file:
 	reader = csv.reader(file, delimiter=',')
 	next(reader, None)  # skip the headers
 	for row in reader:
-		included, differential, analysis = row
+		included, comparison, analysis = row
 		if included == "false":
 			continue
-		SAMPLE[analysis][differential] = differential
+		SAMPLE[analysis][comparison] = comparison
 
-def list_diff_time() :
+def list_comp_time() :
 	result = []
-	for analysis, differential in SAMPLE.items() :
-		for differential, file in differential.items():
-			if analysis == "diff_time" :
-				result.append(differential)
+	for analysis, comparison in SAMPLE.items() :
+		for comparison, file in comparison.items():
+			if analysis == "comp_time" :
+				result.append(comparison)
 	return result
 
-def list_diff_cond() :
+def list_comp_cond() :
 	result = []
-	for analysis, differential in SAMPLE.items() :
-		for differential, file in differential.items():
-			if analysis == "diff_cond" :
-				result.append(differential)
+	for analysis, comparison in SAMPLE.items() :
+		for comparison, file in comparison.items():
+			if analysis == "comp_cond" :
+				result.append(comparison)
 	return result
 
-print(list_diff_time())
-print(list_diff_cond())
+print(list_comp_time())
+print(list_comp_cond())
+
 
 rule all :
 	input :
-		expand("D_Analysis/genomic_ranges/{differential}_threshold_10_ann.gr.rds", differential = list_diff_time()),
-		expand("D_Analysis/genomic_ranges/{differential}_threshold_10_ann.gr.rds", differential = list_diff_cond())
+		expand("D_Analysis/ATAC_differential_accessibility/{comparison}_threshold_10_ann.gr.rds", comparison = list_comp_time()),
+		expand("D_Analysis/ATAC_differential_accessibility/{comparison}_threshold_10_ann.gr.rds", comparison = list_comp_cond()),
+		expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.rds", comparison = list_comp_time()),
+		expand("D_Analysis/ATAC_differential_accessibility/readcount_{comparison}.rds", comparison = list_comp_cond()),
+		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_time()),
+		expand("D_Analysis/ATAC_differential_accessibility/featurecounts_{comparison}.txt", comparison = list_comp_cond())
 
-#*******************************************************************************************************************************************************
-#*** Bloc 3 : Crossed study of samples
-#*******************************************************************************************************************************************************
 
-# ################################################
-# ## A) Analyse static (1 condition 1 time point)
-# ################################################
+
+##############################################################################################
+### Experiment : ATAC_differential_accessibility
+##############################################################################################
+
+rule differential_peaks_union :
+	input:
+		"A_Initial_data/merged_analysis/genomic_ranges/{condition1}_{time1}_{donors1}_threshold_10_ann.gr.rds",
+		"A_Initial_data/merged_analysis/genomic_ranges/{condition2}_{time2}_{donors2}_threshold_10_ann.gr.rds"
+	output: "D_Analysis/ATAC_differential_accessibility/{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}_threshold_10_ann.gr.rds"
+	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
+	shell : """ Rscript C_Scripts/GRanges.R union -o {output} {input} """
+
+rule differential_peaks_featureCounts :
+	input :
+		bam1 = "A_Initial_data/merged_analysis/downsampled_bam/{condition1}_{time1}_{donors1}_downsampled.bam",
+		bam2 = "A_Initial_data/merged_analysis/downsampled_bam/{condition2}_{time2}_{donors2}_downsampled.bam",
+		union = "D_Analysis/ATAC_differential_accessibility/{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}_threshold_10_ann.gr.rds"
+	output :
+		readcount = "D_Analysis/ATAC_differential_accessibility/readcount_{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}.rds",
+		featurecounts = "D_Analysis/ATAC_differential_accessibility/featurecounts_{condition2}_{time2}_{donors2}_vs_{condition1}_{time1}_{donors1}.txt"
+	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
+	shell : """ Rscript C_Scripts/peaks_union_featureCounts.R --output_rds {output.readcount} --output_txt {output.featurecounts} {input.union} {input.bam1} {input.bam2} """
+
+# rule differential_peaks_DEseq :
+
+
+# rule DEseq_Differential_Peaks_Union :
+# 	input : rules.ReadCount_Static_Peaks_Intersection.output
+# 	output : expand("results/readCount_output/readCount_{differential}.rda", differential = DIFFERENTIAL),
+# 	         expand("results/DEseq_output/DEseq2_results_{differential}.txt", differential = DIFFERENTIAL),
+# 	         expand("results/genomic_ranges/differential_peaks/peaks_{modulation}_{differential}_gr.rda", modulation = MODULATION, differential = DIFFERENTIAL),
+# 	         expand("results/readCount_output/featuresCount_{differential}.txt", differential = DIFFERENTIAL)
+# 	conda : "B_Environments/DEseq2_env.yaml"
+# 	shell : """ Rscript C_Scripts/02_DEseq_Differential_Peaks_Union.R """
 #
-# # histogramme with annotations
-# rule Plot_features_histogram :
-# 	input : rules.Annotate_grange.output
+#
+#
+# rule Plot_volcano :
+#   input : rules.Annotate_grange.output
+#   output : expand("results/plot/volcano_{differential}.png", differential = DIFFERENTIAL),
+#            expand("results/plot/volcano_TSS_Intergenic_{differential}.png", differential = DIFFERENTIAL)
+#   conda : "B_Environments/volcano_env.yaml"
+#   shell : """ Rscript C_Scripts/05_Plot_volcano.R """
+
+
+
+#################################################
+### Experiment : ATAC_peaks_annotation
+#################################################
+
+# rule plot_annotation :
+# input :
 # 	output : expand("results/plot/features_histogram_{analysis}_analysis_{condition}.png", analysis = ANALYSIS, condition = CONDITION),
 # 	           expand("results/plot/total_peak_nb_histogram_{condition}.png", condition = CONDITION),
 # 	           expand("results/plot/TSS_Exon_Intron_Intergenic_histogram_{condition}.png", condition = CONDITION)
 # 	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-# 	shell : """ Rscript C_Scripts/04_Plot_features_histogram.R """
+# 	shell : """ Rscript C_Scripts/04_Plot_features_histogram.R {param.directory}"""
 #
+
+
+
+
+
+
+#################################################
+### Experiment : ATAC
+#################################################
+
 # # répartition des peaks sur les chromosomes
 #
-#
+#```{r}
+
 #
 #
 #  # séparation de la conversion en bed et de la rule homer
@@ -76,77 +135,22 @@ rule all :
 #   shell : """ findMotifsGenome.pl {input.input2} hg19 results/homer_output/{params.prefix}/ -size given -S 100 """
 # # problème avec le hg19 ? l'environnement créé via le yaml pose problème il ne contient pas les fichiers chrosomes
 #
-#
-# ######################################################################################################################
-# ### B) Analyse diff_time (1 condition multiple time points) and C) Analyse diff_cond (multiple conditions 1 time point)
-# ######################################################################################################################
-
-rule differential_peaks_union:
-	input:
-		"A_Initial_data/genomic_ranges/{condition1}_{time1}_{donors1}_threshold_10_ann.gr.rds",
-		"A_Initial_data/genomic_ranges/{condition2}_{time2}_{donors2}_threshold_10_ann.gr.rds"
-	output: "D_Analysis/genomic_ranges/{condition1}_{time1}_{donors1}_vs_{condition2}_{time2}_{donors2}_threshold_10_ann.gr.rds"
-	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-	shell : """ Rscript C_Scripts/GRanges.R union -o {output} {input} """
-
-
-#
-# rule differential_peaks_featureCounts :
-# 	input :
-# 		bam1 = "A_Initial_data/downsampled_bam/{condition1}_{time1}_{donors1}_downsampled.bam",
-# 		bam2 = "A_Initial_data/downsampled_bam/{condition2}_{time2}_{donors2}_downsampled.bam",
-# 		union = "D_Analysis/genomic_ranges/{condition1}_{time1}_{donors1}_vs_{condition2}_{time2}_{donors2}_threshold_10_ann.gr.rds"
-# 	output :
-# 		readcount = "D_Analysis/readCount_matrix/differential_peaks/readcount_{condition_time_1}_{donors1}_vs_{condition_time_2}_{donors2}.rds",
-# 		featurecounts = "D_Analysis/readCount_matrix/differential_peaks/featurecounts_{condition_time_1}_{donors1}_vs_{condition_time_2}_{donors2}.txt"
-# 	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-# 	shell : """
-#         Rscript C_Scripts/peaks_featureCounts.R \\
-#             --output_rds {output.readcount} \\
-#             --output_txt {output.featurecounts} \\
-#             {input.union} {input.bam1} {input.bam2}
-#         """
-# #
-#
-#
-# rule readcount_matrix :
-# 	input :
-# 		csv = "D_Analysis/macs2_output/{sample}.df.csv",
-# 		bam = "D_Analysis/downsampled_bam/{sample}_downsampled.bam"
-# 	output :
-# 		readcount = "D_Analysis/macs2_output/{sample}.readcount.csv",
-# 		rule_order = touch("D_Analysis/touch/mytask_readcount_{sample}.done")
-# 	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-# 	shell : """ Rscript C_Scripts/peaks_featureCounts.R --output_csv {output.readcount} {input.csv} {input.bam}"""
-#
-#
 
 
 
-# rule DEseq_Differential_Peaks_Union :
-# 	input : rules.ReadCount_Static_Peaks_Intersection.output
-# 	output : expand("results/readCount_output/readCount_{differential}.rda", differential = DIFFERENTIAL),
-# 	         expand("results/DEseq_output/DEseq2_results_{differential}.txt", differential = DIFFERENTIAL),
-# 	         expand("results/genomic_ranges/differential_peaks/peaks_{modulation}_{differential}_gr.rda", modulation = MODULATION, differential = DIFFERENTIAL),
-# 	         expand("results/readCount_output/featuresCount_{differential}.txt", differential = DIFFERENTIAL)
-# 	conda : "B_Environments/DEseq2_env.yaml"
-# 	shell : """ Rscript C_Scripts/02_DEseq_Differential_Peaks_Union.R """
 #
+#
+##############################################################################################
+### Experiment : ATAC_gene_coverage
+##############################################################################################
+
 # rule Gene_coverage :
 # 	  input : rules.DEseq_Differential_Peaks_Union.output
 # 	  output : expand("results/Gene_coverage/{condition}_{region}_Coverage_plot.txt", condition = CONDITION, region = REGION)
 # 	  conda : "B_Environments/gviz_env.yaml"
 # 	  shell : """ Rscript C_Scripts/06_Gene_coverage.R """
-#
-#
-# rule Plot_volcano :
-#   input : rules.Annotate_grange.output
-#   output : expand("results/plot/volcano_{differential}.png", differential = DIFFERENTIAL),
-#            expand("results/plot/volcano_TSS_Intergenic_{differential}.png", differential = DIFFERENTIAL)
-#   conda : "B_Environments/volcano_env.yaml"
-#   shell : """ Rscript C_Scripts/05_Plot_volcano.R """
-#
-#
+
+
 # rule Gene_Ontology :
 # input :
 # output :
