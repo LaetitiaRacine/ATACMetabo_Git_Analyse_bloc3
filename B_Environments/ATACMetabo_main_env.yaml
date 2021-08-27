@@ -7,14 +7,18 @@ dependencies:
   - bioconductor-deseq2
   - bioconductor-genomicranges
   - bioconductor-rsubread
+  - bioconductor-karyoploteR
   - r-base
   - r-docopt
   - r-dplyr
   - r-ggforce
   - r-ggplot2
   - r-ggthemes
+  - r-ggupset
   - r-stringr
   - r-tidyr
+  - r-tidyverse
+  - r-UpsetR
   - r-viridis
   - samtools
   - macs2
