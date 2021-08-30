@@ -1,0 +1,12 @@
+name: gviz_env
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconductor-genomicranges
+  - bioconductor-gviz
+  - r-base
+  - r-docopt
+  - r-dplyr
+  - r-stringr
