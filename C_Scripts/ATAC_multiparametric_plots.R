@@ -18,7 +18,7 @@ dir_initial_gr = "/home/lracine/Documents/Git_Analyse_ATACMetabo_bloc3/A_Initial
 dir_output = paste0(dir, "D_Analysis/ATAC_multiparametric_plots/")
 
 #**********************
-# Granges union for all samples 
+# Granges union for all samples  => fait avec le script Granges.R
 #**********************
 
 # gr_list = lapply(paste0(dir_initial_gr, list.files(path = dir_initial_gr, pattern = "threshold_10_ann.gr.rds")), readRDS)
