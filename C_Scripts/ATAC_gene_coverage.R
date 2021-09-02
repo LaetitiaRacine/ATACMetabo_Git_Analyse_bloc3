@@ -9,9 +9,9 @@
 "Create plot for gene coverage
 
 Usage:
-  ATAC_gene_coverage.R [options] multi <prom_file> <bam_dir> <gr_dir> 
-  ATAC_gene_coverage.R [options] single <prom_file> <bam_dir> <peak_file>
-  ATAC_gene_coverage.R [options] multi_choice <prom_file> <bam_dir> <peak_file>...
+  ATAC_gene_coverage.R [options] multi <prom_file> <region_file> <bam_dir> <gr_dir> 
+  ATAC_gene_coverage.R [options] single <prom_file> <region_file> <bam_dir> <peak_file>
+  ATAC_gene_coverage.R [options] multi_choice <prom_file> <region_file> <bam_dir> <peak_file>...
   ATAC_gene_coverage.R -h | --help
 
 Options:
@@ -51,29 +51,10 @@ col_fun = function(file_name) {
 ####################
 
 prom_gene_fantom_gr = readRDS(arguments$prom_file)
-
-# Extract and organize gene information from genesymbol via Gviz
-list_gene = c("GATA2","RUNX1","SMAD6","ERG","SPI1","CBFA2T3","FLI1","ZFPM1","HHEX","TAL1","GATA1")
-max_read = c(25,20,15,10,30,15,20,20,40,40,10)
-
-data(genesymbol, package = "biovizBase")
-df_region = tibble()
-
-for(i in 1:length(list_gene)) {
-  region = genesymbol[list_gene[i]]
-  region = range(region, ignore.strand = TRUE)
-  region = region + 5000
-  region = keepStandardChromosomes(region)
-  df_region[i,"gene"] = list_gene[i]
-  df_region[i,"chr"] = as.character(seqnames(region))
-  df_region[i,"start"] = start(region)
-  df_region[i,"end"] = end(region)
-  df_region[i,"max_read"] = max_read[i]
-}
+df_region = read.csv2(file = arguments$region_file, sep = ";")
 
 axTrack <- GenomeAxisTrack() # scale
 blank_space = GenomeAxisTrack(col = "white",fill = "white", fontcolor = "white")   # to improve plot readibility
-
 
 ##############################
 # One plot with all conditions 
@@ -85,6 +66,8 @@ if (arguments$multi == TRUE) {
 # Loading and storing files
 #########
 
+print("Chargement des fichiers")
+  
 # Extract peaks files and bam directions
 list_peaks_files = list.files(arguments$gr_dir, pattern = "threshold_10_ann.gr.rds", full.names = TRUE)
 names(list_peaks_files) = str_extract(string = list_peaks_files, pattern = "(?<=/genomic_ranges/).+(?=_threshold_10_ann.gr.rds)")
@@ -99,6 +82,8 @@ list_peaks_kept = lapply(X = list_peaks_files, FUN = readRDS)
 #########
 
 for (i in 1:nrow(df_region)) { # one plot per gene of the list
+   
+  print(paste("Boucle : gène", df_region$gene[i]))
   
   gr_region = GRanges(seqnames = df_region$chr[i], 
                       ranges= IRanges(start = df_region$start[i], 
@@ -157,7 +142,8 @@ for (i in 1:nrow(df_region)) { # one plot per gene of the list
     list_to_plot = list(idxTrack, axTrack, blank_space, ensGenes)
   }
   
-  
+  print("Datatracking")
+        
   # DataTracking 
   # *************
   
@@ -393,17 +379,21 @@ if (arguments$multi_choice == TRUE) {
 
 if (arguments$single == TRUE) {
 
+  print("Chargement des fichiers")
+  
   # Extract peak files directions            
   peak_file = readRDS(arguments$peak_file)
   name = str_extract(string = arguments$peak_file, pattern = "(?<=/genomic_ranges/).+(?=_threshold_10_ann.gr.rds)")
   bam_file = str_subset(list.files(arguments$bam_dir, pattern = name, full.names = TRUE), pattern = "-D[:digit:]{1}.bam(?!.bai|.nbreads|.qc)")
-
+  
 #########
 # Tracking plots creation for each gene
 #########
 
-for (i in 1:nrow(df_region)) { # one plot per gene of the list
+for(i in 1:nrow(df_region)) { # one plot per gene of the list
 
+  print(paste("Boucle : gène", df_region$gene[i]))
+  
   gr_region = GRanges(seqnames = df_region$chr[i],
                       ranges= IRanges(start = df_region$start[i],
                                       end = df_region$end[i]))
@@ -447,6 +437,8 @@ for (i in 1:nrow(df_region)) { # one plot per gene of the list
                                    fill = "green")
   }
 
+  print("Datatracking")
+  
   # DataTracking
   dt = DataTrack(type = "histogram",
                  name = name,
@@ -467,6 +459,8 @@ for (i in 1:nrow(df_region)) { # one plot per gene of the list
   # Create list of peaks detected in the gene region +/- 5kb
   peaks_in = subsetByOverlaps(peak_file, gr_region)
 
+  print("plot")
+  
   if (length(peaks_in) == 0){ # if not detected, no graph for this gene
 
     print("no_peaks_detected")

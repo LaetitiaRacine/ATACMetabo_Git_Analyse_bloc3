@@ -56,8 +56,8 @@ print(list_sample())
 
 rule all :
 	input :
-		"D_Analysis/ATAC_gene_coverage/GATA2_Coverage_plot.pdf"
-		#expand("D_Analysis/ATAC_gene_coverage/{sample}_GATA2_Coverage_plot.pdf", sample = list_sample()),
+		"D_Analysis/ATAC_gene_coverage/GATA2_Coverage_plot.pdf",
+		expand("D_Analysis/ATAC_gene_coverage/{sample}_GATA2_Coverage_plot.pdf", sample = list_sample()),
 		# expand("D_Analysis/ATAC_gene_coverage/{liste}_GATA2_Coverage_plot.pdf", liste = LIST)
 
 #*******************************************************************************************************************************************************
@@ -68,17 +68,26 @@ rule all :
 ## Exp ATAC_gene_coverage
 ################################################
 
-# un output d'indiqué pour piouvoir l'appeler dans le rule all
+# pour le moment pas d'input, il faut modifier le script R à la main
+rule gene_coverage_region_df :
+	output : "D_Analysis/ATAC_gene_coverage/df_region.csv"
+	conda : "B_Environments/ATACMetabo_gviz_env.locked.yaml"
+	shell : """ Rscript C_Scripts/ATAC_gene_biovizBase.R {output} """
+
+
+# un output d'indiqué pour pouvoir l'appeler dans le rule all
 rule gene_coverage_all_conditions:
-	input: "A_Initial_data/prom_gene_fantom_gr_corrected.rds"
+	input:
+		prom = "A_Initial_data/prom_gene_fantom_gr_corrected.rds",
+		region = "D_Analysis/ATAC_gene_coverage/df_region.csv"
 	output: "D_Analysis/ATAC_gene_coverage/GATA2_Coverage_plot.pdf"
 	params :
 		bam_dir = "A_Initial_data/merged_analysis/bam",
 		gr_dir = "A_Initial_data/merged_analysis/genomic_ranges"
 	conda : "B_Environments/ATACMetabo_gviz_env.locked.yaml"
-	shell : """ Rscript C_Scripts/ATAC_gene_coverage.R multi {input} {params.bam_dir} {params.gr_dir} """
+	shell : """ Rscript C_Scripts/ATAC_gene_coverage.R multi {input.prom} {input.region} {params.bam_dir} {params.gr_dir} """
 
-# un output d'indiqué pour piouvoir l'appeler dans le rule all
+# un output d'indiqué pour pouvoir l'appeler dans le rule all
 # rule gene_coverage_multiple_conditions:
 # 	input:
 # 		prom = "A_Initial_data/prom_gene_fantom_gr_corrected.rds",
@@ -95,10 +104,10 @@ rule gene_coverage_all_conditions:
 rule gene_coverage_one_condition:
 	input:
 		prom = "A_Initial_data/prom_gene_fantom_gr_corrected.rds",
+		region = "D_Analysis/ATAC_gene_coverage/df_region.csv",
 		rds = "A_Initial_data/merged_analysis/genomic_ranges/{sample}_threshold_10_ann.gr.rds"
 	output: "D_Analysis/ATAC_gene_coverage/{sample}_GATA2_Coverage_plot.pdf"
 	params :
-		bam_dir = "A_Initial_data/merged_analysis/bam",
-		gr_dir = "A_Initial_data/merged_analysis/genomic_ranges"
+		bam_dir = "A_Initial_data/merged_analysis/bam"
 	conda : "B_Environments/ATACMetabo_gviz_env.locked.yaml"
-	shell : """ Rscript C_Scripts/ATAC_gene_coverage.R single {input.prom} {params.bam_dir} {input.rds} """
+	shell : """ Rscript C_Scripts/ATAC_gene_coverage.R single {input.prom} {input.region} {params.bam_dir} {input.rds} """
