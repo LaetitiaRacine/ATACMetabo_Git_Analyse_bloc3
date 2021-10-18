@@ -1,7 +1,4 @@
 
-## Idée : ajouter des options d'appel dans la rule (voir report_merged_plot bloc2) et ajouter des if dans le code 
-
-
 #########################
 ### Command line to call the script in linux consol
 #########################
@@ -10,7 +7,7 @@
 
 Usage:
   ATAC_plot_peaks_annotation.R <type> <gr_info> <output> 
-  ATAC_plot_peaks_annotation.R <type> <df_peaks> <df_annot> <facet> <plot_name> 
+  ATAC_plot_peaks_annotation.R <type> <df_annot> <facet> <plot_name> 
   ATAC_plot_peaks_annotation.R -h | --help
 
 Options:
@@ -27,10 +24,23 @@ col_fun = function(file_name) {
                     str_detect(file_name, "aK") ~ "#C49A00",
                     str_detect(file_name, "VPA") ~ "#A58AFF",
                     str_detect(file_name, "AOA") ~"#53B400",
-                    str_detect(file_name, "MP") ~ "#00B6EB",
+                    str_detect(file_name, "CTRL") ~ "#00B6EB",
                     str_detect(file_name, "Xvivo") ~ "#FB61D7")
   return(color)
 }
+
+cond_palette = c("Xvivo" = "#FB61D7",
+                 "CTRL" = "#00B6EB",
+                 "2DG" = "#F8766D",
+                 "DON" = "#00C094",
+                 "AOA" = "#53B400",
+                 "aK" = "#C49A00",
+                 "VPA" = "#A58AFF")
+
+cond_time = c("00h" = "#FB61D7",
+              "03h" = "#2D708E",
+              "12h" = "#2AB07F",
+              "24h" = "#FDE725")
 
 #########################
 ### Libraries loading
@@ -62,9 +72,11 @@ if (arguments$type == "table") {
       dplyr::select(-seqnames, -start, -end, -width, -strand) %>%
       dplyr::mutate(sample = str_extract(string = peaks[i], pattern = "[:graph:]+(?=_threshold)"))
     temp2 = temp %>% 
-      group_by(sample) %>%
-      summarise(across(.cols = 1:(ncol(temp)-1), .fns = sum)) %>%
-      tidyr::separate(col = sample, into = c("condition","time","donor"), sep = "_", remove = TRUE)
+      dplyr::group_by(sample) %>%
+      dplyr::summarise(across(.cols = 1:(ncol(temp)-1), .fns = sum)) %>%
+      tidyr::separate(col = sample, into = c("condition","time","donor"), sep = "_", remove = TRUE) %>%
+      dplyr::mutate(condition = str_replace(condition, "MP", "CTRL")) %>%
+      dplyr::mutate(total_nbpeaks = nrow(temp), .after = donor)
     df_peaks_annotation = rbind(df_peaks_annotation, temp2)
   }
   
@@ -78,11 +90,21 @@ if (arguments$type == "table") {
 
 if (arguments$type == "nbpeaks") {
   
-  df_peaks = read.csv2(arguments$df_peaks, sep = ";") %>% dplyr::filter(threshold == "10")
+  #**************************************#
+  # Chargement et mise en forme du tableau 
+  #**************************************#
   
+  df_peaks_annotation = read.csv2(arguments$df_annot, sep = ";")
+  # Ajout de filtre (optionnel) pour enlever les points aK et VPA
+  df_peaks_annotation = df_peaks_annotation %>% dplyr::filter(condition != "aK" & condition != "VPA")
+  # Ajout de levels pour conserver ordre dans graphique
+  df_peaks_annotation$condition = factor(df_peaks_annotation$condition, levels = c("Xvivo", "CTRL", "2DG", "DON", "AOA"))
+  df_peaks_annotation$time = factor(df_peaks_annotation$time, levels = c("00h", "03h", "12h", "24h"))
+
+  #**************************************#
   if (arguments$facet == "pertime") {
     
-    nbpeaks_pertime = ggplot(df_peaks,aes(x = time,  y = nbpeaks, label = nbpeaks, fill = condition)) +
+    nbpeaks_pertime = ggplot(df_peaks_annotation, aes(x = time,  y = total_nbpeaks, label = total_nbpeaks, fill = condition)) +
       geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
       geom_text(position = position_dodge2(width = 0.9, preserve = "single"), angle = 90, hjust=1.5) +
       theme(legend.position = "right", 
@@ -95,6 +117,8 @@ if (arguments$type == "nbpeaks") {
             axis.title.x = element_blank(),
             axis.text.x = element_text(vjust = -0.5, size = 11, colour = "black"),
             axis.ticks = element_blank()) +
+      scale_fill_manual(values = cond_palette, 
+                        breaks=unique(df_peaks_annotation$condition)) +
       labs(y = "Number of peaks detected")
     
     ggsave(plot = nbpeaks_pertime,
@@ -103,9 +127,10 @@ if (arguments$type == "nbpeaks") {
     
   }
 
+  #**************************************#
   if (arguments$facet == "percond") {
     
-    nbpeaks_percond = ggplot(df_peaks,aes(x = condition,  y = nbpeaks, label = nbpeaks, fill = time)) +
+    nbpeaks_percond = ggplot(df_peaks_annotation,aes(x = condition,  y = total_nbpeaks, label = total_nbpeaks, fill = time)) +
       geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
       geom_text(position = position_dodge2(width = 0.9, preserve = "single"), angle = 90, hjust=1.5) +
       theme(legend.position = "right", 
@@ -118,8 +143,8 @@ if (arguments$type == "nbpeaks") {
             axis.title.x = element_blank(),
             axis.text.x = element_text(vjust = -0.5, size = 11, colour = "black"),
             axis.ticks = element_blank()) +
-      labs(y = "Number of peaks detected") +
-      scale_fill_viridis_d(alpha = 0.7)
+      scale_fill_manual(values = cond_time) +
+      labs(y = "Number of peaks detected")
 
     ggsave(plot = nbpeaks_percond, 
            filename = arguments$plot_name,
@@ -135,12 +160,26 @@ if (arguments$type == "nbpeaks") {
 
 if (arguments$type == "nbpeaks_annotation") {
   
-  df_peaks_annotation = read.csv2(arguments$df_annot, sep = ";")
-  df_peaks_annotation_l = pivot_longer(data = df_peaks_annotation, cols = 4:ncol(df_peaks_annotation), names_to = "annotation", values_to = "count")
+  #**************************************#
+  # Chargement et mise en forme du tableau 
+  #**************************************#
   
+  df_peaks_annotation = read.csv2(arguments$df_annot, sep = ";")
+  # Ajout de filtre (optionnel) pour enlever les points aK et VPA
+  df_peaks_annotation = df_peaks_annotation %>% dplyr::filter(condition != "aK" & condition != "VPA")
+  # Ajout de levels pour conserver ordre dans graphique
+  df_peaks_annotation$condition = factor(df_peaks_annotation$condition, levels = c("Xvivo", "CTRL", "2DG", "DON", "AOA"))
+  df_peaks_annotation$time = factor(df_peaks_annotation$time, levels = c("00h", "03h", "12h", "24h"))
+  # Pivot du tableau
+  df_peaks_annotation_l = pivot_longer(data = df_peaks_annotation, 
+                                       cols = 4:ncol(df_peaks_annotation), 
+                                       names_to = "annotation", 
+                                       values_to = "count")
+  
+  #**************************************#
   if (arguments$facet == "pertime") {
     
-    annot_pertime = ggplot(df_peaks_annotation_l,aes(x = time,  y = count, fill = condition)) +
+    annot_pertime = ggplot(df_peaks_annotation_l, aes(x = time,  y = count, fill = condition)) +
       geom_col(position = position_dodge2(width = 0.9, preserve = "single")) +
       theme(legend.position = "right", 
             plot.title = element_text(hjust = 0.5, face = "bold", colour= "black", size = 16),
@@ -151,6 +190,8 @@ if (arguments$type == "nbpeaks_annotation") {
             axis.title.y = element_text(vjust = 1 ,size = 14),
             axis.title.x = element_blank(),
             axis.text.x = element_text(vjust = -0.5, size = 11, colour = "black")) +
+      scale_fill_manual(values = cond_palette, 
+                        breaks=unique(df_peaks_annotation$condition)) +
       facet_wrap(annotation~., scale = "free_x")
     
     ggsave(plot = annot_pertime, 
@@ -159,6 +200,7 @@ if (arguments$type == "nbpeaks_annotation") {
     
   }
   
+  #**************************************#
   if (arguments$facet == "percond") {
     
     annot_percond = ggplot(df_peaks_annotation_l,aes(x = condition,  y = count, fill = time)) +
@@ -173,7 +215,7 @@ if (arguments$type == "nbpeaks_annotation") {
             axis.title.x = element_blank(),
             axis.text.x = element_text(vjust = -0.5, size = 11, colour = "black")) +
       facet_wrap(annotation~., scale = "free_x") +
-      scale_fill_viridis_d(alpha = 0.7)
+      scale_fill_manual(values = cond_time) 
 
     ggsave(plot = annot_percond, 
            filename = arguments$plot_name,
@@ -187,75 +229,90 @@ if (arguments$type == "nbpeaks_annotation") {
 #####################
 
 if (arguments$type == "upset" | arguments$type == "upset_zoom") {
-
+  
+  #****************************************#
+  # Chargement et mise en forme des tableaux 
+  #****************************************#
+  
   peaks_ann = as.data.frame(readRDS(arguments$gr_info)) %>% 
     dplyr::select(-seqnames, -start, -end, -width, -strand) %>%
     tibble::rownames_to_column(var = "peakID") 
-  peaks_pivot = pivot_longer(data = peaks_ann, cols = colnames(peaks_ann)[-1], names_to = "annotation", values_to = "value") %>%
-    dplyr::filter(value == TRUE)
+  
+  peaks_pivot = pivot_longer(data = peaks_ann, 
+                             cols = colnames(peaks_ann)[-1], 
+                             names_to = "annotation", 
+                             values_to = "value") %>%
+    dplyr::filter(value == TRUE) %>%
+    dplyr::select(-value)
+  
   peaks_group_anno = peaks_pivot %>%
-    group_by(peakID) %>%
-    summarize(annotations = list(annotation)) 
+    dplyr::group_by(peakID) %>%
+    dplyr::summarize(annotations = list(annotation)) 
+  
   name_sample = str_extract(arguments$gr_info, "(?<=ranges/).+(?=_ann)")
-    
+  if (str_detect(name_sample, "MP")) { name_sample = str_replace(name_sample, "MP", "CTRL") }
+
+  #**************************************#
   if (arguments$type == "upset") {
     
     plot = ggplot(peaks_group_anno, aes(x = annotations)) +
-      geom_bar(fill = col_fun(arguments$gr_info), color = col_fun(arguments$gr_info)) +
+      geom_bar(fill = col_fun(name_sample), color = "black") +
       ggtitle(paste0("Peaks distribution in genomic features - ", name_sample)) +
       ylab("Number of peaks") +
       scale_x_upset()
     ggsave(plot = plot, filename = arguments$output, width = 16*0.75, height = 9*0.75)
-    
+
     plot_name = arguments$output
-    str_sub(plot_name, str_locate(plot_name, "plot_")[2]+1, str_locate(plot_name, "plot_")[2]) <- "set_size_"
+    str_sub(plot_name, str_locate(plot_name, "plot_")[2]+1, str_locate(plot_name, "plot_")[2]) = "set_size_"
     png(plot_name, width = 2000, height = 1000)
     print(peaks_pivot %>%
-            dplyr::select(-value) %>%
             unnest(cols = annotation) %>%
             mutate(annotMember=1) %>%
-            pivot_wider(names_from = annotation, values_from = annotMember, values_fill = list(annotMember = 0)) %>%
+            pivot_wider(names_from = annotation, 
+                        values_from = annotMember, 
+                        values_fill = list(annotMember = 0)) %>%
             as.data.frame() %>%
             UpSetR::upset(sets = colnames(peaks_ann)[-1],
                           empty.intersections = NULL,
                           nintersects = NA,
                           order.by = "freq",
-                          main.bar.color = col_fun(arguments$gr_info))
+                          main.bar.color = col_fun(name_sample))
     )
-    grid.text(paste0("Peaks distribution in genomic features - ", name_sample), x = 0.65, y=0.95, gp=gpar(fontsize=20))
+    grid.text(paste0("Peaks distribution in genomic features - ", name_sample), 
+              x = 0.65, y=0.95, gp=gpar(fontsize=20))
     dev.off()
 
   }
   
-  
+  #**************************************#
   if (arguments$type == "upset_zoom") {
     
     plot = ggplot(peaks_group_anno, aes(x = annotations)) +
-      geom_bar(fill = col_fun(arguments$gr_info), color = col_fun(arguments$gr_info)) +
+      geom_bar(fill = col_fun(name_sample), color = "black") +
       ggtitle(paste0("Peaks distribution in genomic features - ", name_sample)) +
       ylab("Number of peaks") +
       scale_x_upset(n_intersection = 50)
     ggsave(plot = plot, filename = arguments$output, width = 16*0.75, height = 9*0.75)
 
     plot_name = arguments$output
-    str_sub(plot_name, str_locate(plot_name, "plot_")[2]+1, str_locate(plot_name, "plot_")[2]) <- "set_size_"
+    str_sub(plot_name, str_locate(plot_name, "plot_")[2]+1, str_locate(plot_name, "plot_")[2]) = "set_size_"
     png(plot_name, width = 2000, height = 1000)
     print(peaks_pivot %>%
-            dplyr::select(-value) %>%
             unnest(cols = annotation) %>%
             mutate(annotMember=1) %>%
-            pivot_wider(names_from = annotation, values_from = annotMember, values_fill = list(annotMember = 0)) %>%
+            pivot_wider(names_from = annotation, 
+                        values_from = annotMember, 
+                        values_fill = list(annotMember = 0)) %>%
             as.data.frame() %>%
             UpSetR::upset(sets = colnames(peaks_ann)[-1],
                           empty.intersections = NULL,
                           nintersects = 50,
                           order.by = "freq",
-                          main.bar.color = col_fun(arguments$gr_info))
+                          main.bar.color = col_fun(name_sample))
     )
     grid.text(paste0("Peaks distribution in genomic features - ", name_sample), x = 0.65, y=0.95, gp=gpar(fontsize=20))
     dev.off()
     
   }
-  
-  
+
 }

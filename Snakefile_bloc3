@@ -59,7 +59,7 @@ rule all :
 		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_percond.png",
 		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_pertime.png",
 		"D_Analysis/ATAC_nbpeak_annotation/plot_nbpeaks_annotation_percond.png",
-		"D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv",
+		# "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv",
 		expand("D_Analysis/ATAC_nbpeak_annotation/plot_upset_{sample}.png", sample = list_sample()),
 		expand("D_Analysis/ATAC_nbpeak_annotation/plot_upset_zoom_{sample}.png", sample = list_sample())
 
@@ -83,12 +83,10 @@ rule plot_nbpeaks_annot :
 	wildcard_constraints :
 		graph = "nbpeaks|nbpeaks_annotation",
 		facet = "pertime|percond"
-	input :
-		tab_nbpeaks = "A_Initial_data/merged_analysis/reports/nbpeaks_report.csv",
-		tab_annot_long = "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv"
+	input : "D_Analysis/ATAC_nbpeak_annotation/nbpeaks_per_annot_report.csv"
 	output : "D_Analysis/ATAC_nbpeak_annotation/plot_{graph}_{facet}.png"
 	conda : "B_Environments/ATACMetabo_main_env.locked.yaml"
-	shell : """ Rscript C_Scripts/ATAC_plot_peaks_annotation.R {wildcards.graph} {input.tab_nbpeaks} {input.tab_annot_long} {wildcards.facet} {output} """
+	shell : """ Rscript C_Scripts/ATAC_plot_peaks_annotation.R {wildcards.graph} {input} {wildcards.facet} {output} """
 
 rule plot_annot_upset :
 	wildcard_constraints :
